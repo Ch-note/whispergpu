@@ -1,6 +1,7 @@
 from pathlib import Path
 import torch
 import numpy as np
+import os
 
 from pyannote.audio import Pipeline, Model, Inference, Audio
 from pyannote.core import Segment
@@ -94,10 +95,9 @@ class Diarizer:
 
 
 def diarize_audio(audio_path: str):
-    """
-    Convenience wrapper used by main.py
-    """
-    from config import HF_TOKEN
+    hf_token = os.environ.get("HF_TOKEN")
+    if hf_token is None:
+        raise RuntimeError("HF_TOKEN is not set in environment")
 
-    diarizer = Diarizer(hf_token=HF_TOKEN)
+    diarizer = Diarizer(hf_token=hf_token)
     return diarizer.diarize(audio_path)
