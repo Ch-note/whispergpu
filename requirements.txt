@@ -1,0 +1,11 @@
+numpy == 1.26.4
+faster-whisper==1.2.1
+ctranslate2==4.6.2
+tqdm
+psutil
+pyyaml
+pyannote.audio
+soundfile
+scipy
+requests
+

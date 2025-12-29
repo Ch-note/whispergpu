@@ -1,0 +1,6 @@
+INPUT_DIR: "./input"
+OUTPUT_DIR: "./output"
+MODEL_NAME: "medium"
+LANGUAGE: "ko"
+CHUNK_SEC: 30.0
+DEVICE: "cuda"
