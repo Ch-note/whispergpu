@@ -74,19 +74,27 @@ class Diarizer:
 
         for turn, _, speaker in diarization.itertracks(yield_label=True):
             # turn is pyannote.core.Segment
+            
+            # ---- 너무 짧은 구간(0.5초 미만)은 임베딩 추출 시 에러 발생 가능하므로 제외 ----
+            if turn.duration < 0.2:
+                continue
 
-            embedding = self.embedding_inference.crop(audio_dict, turn)
-            if hasattr(embedding, "detach"):
-                embedding = embedding.detach().cpu().numpy()
+            try:
+                embedding = self.embedding_inference.crop(audio_dict, turn)
+                if hasattr(embedding, "detach"):
+                    embedding = embedding.detach().cpu().numpy()
 
-            results.append(
-                {
-                    "start": float(turn.start),
-                    "end": float(turn.end),
-                    "speaker": speaker,
-                    "embedding": embedding,
-                }
-            )
+                results.append(
+                    {
+                        "start": float(turn.start),
+                        "end": float(turn.end),
+                        "speaker": speaker,
+                        "embedding": embedding,
+                    }
+                )
+            except Exception as e:
+                print(f"[WARN] Failed to extract embedding for segment {turn.start:.2f}-{turn.end:.2f}: {e}")
+                continue
 
         return results
 
