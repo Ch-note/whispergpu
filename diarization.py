@@ -11,8 +11,7 @@ import json
 import numpy as np
 import os
 from pyannote.audio import Pipeline, Model
-
-DEVICE = os.environ.get("DEVICE")
+from config import DEVICE
 
 
 class Diarizer:
