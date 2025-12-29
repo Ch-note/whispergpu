@@ -28,13 +28,13 @@ class Diarizer:
         # ---- diarization pipeline ----
         self.pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization",
-            token=hf_token,
+            use_auth_token=hf_token,
         ).to(self.device)
 
         # ---- embedding model (Inference wrapper is REQUIRED) ----
         embedding_model = Model.from_pretrained(
             "pyannote/embedding",
-            token=hf_token,
+            use_auth_token=hf_token,
         )
 
         self.embedding_inference = Inference(
