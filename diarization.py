@@ -19,18 +19,23 @@ class Diarizer:
         :param hf_token: HuggingFace access token
         :param device: "cuda" or "cpu"
         """
+        if DEVICE != "cuda":
+            raise RuntimeError(f"Invalid DEVICE={DEVICE}. This pipeline requires CUDA.")
+
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is required but not available")
 
         # 화자 분리 파이프라인
         self.pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization",
             use_auth_token=hf_token
-        ).to(torch_device)
+        ).to(torch.device("cuda"))
 
         # speaker embedding 모델
         self.embedding_model = Model.from_pretrained(
             "pyannote/embedding",
             use_auth_token=hf_token
-        ).to(torch_device)
+        ).to(torch.device("cuda"))
 
     def diarize(self, audio_path: str):
         """
