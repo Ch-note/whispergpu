@@ -12,6 +12,8 @@ import numpy as np
 import os
 from pyannote.audio import Pipeline, Model
 
+DEVICE = os.environ.get("DEVICE")
+
 
 class Diarizer:
     def __init__(self, hf_token: str, device: str = "cuda"):
