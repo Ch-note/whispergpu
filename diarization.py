@@ -24,13 +24,13 @@ class Diarizer:
         self.pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization",
             use_auth_token=hf_token
-        ).to(device)
+        ).to(torch_device)
 
         # speaker embedding 모델
         self.embedding_model = Model.from_pretrained(
             "pyannote/embedding",
             use_auth_token=hf_token
-        ).to(device)
+        ).to(torch_device)
 
     def diarize(self, audio_path: str):
         """
