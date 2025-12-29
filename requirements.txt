@@ -6,6 +6,5 @@ psutil
 pyyaml
 pyannote.audio
 soundfile
-scipy
 requests
 
