@@ -12,7 +12,7 @@ import numpy as np
 import os
 from pyannote.audio import Pipeline, Model
 from config import DEVICE
-
+import torch
 
 class Diarizer:
     def __init__(self, hf_token: str, device: str = "cuda"):
