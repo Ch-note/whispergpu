@@ -69,10 +69,8 @@ def process_chunk(chunk_index: int, wav_path: Path):
     """
 
     # 1. diarization
-    diar_segments = diarize_audio(
-        wav_path,
-        device=DEVICE
-    )
+    diar_segments = diarize_audio(wav_path)
+
 
     # 2. global speaker linking
     for d in diar_segments:
