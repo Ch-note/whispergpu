@@ -75,12 +75,7 @@ class Diarizer:
         for turn, _, speaker in diarization.itertracks(yield_label=True):
             # turn is pyannote.core.Segment
 
-            embedding = (
-                self.embedding_inference.crop(audio_dict, turn)
-                .detach()
-                .cpu()
-                .numpy()
-            )
+            embedding = self.embedding_inference.crop(audio_dict, turn)
 
             results.append(
                 {
