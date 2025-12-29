@@ -74,7 +74,7 @@ class SpeakerRegistry:
 
     def match_or_create(self, embedding: np.ndarray, update: bool = True):
         """
-        speaker 매칭 시도 → 실패 시 신규 speaker 생성
+        speaker 매칭 시도 -> 실패 시 신규 speaker 생성
         """
         spk_id, score = self.match(embedding)
 

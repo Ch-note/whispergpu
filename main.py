@@ -65,27 +65,24 @@ def worker_loop():
 def process_chunk(chunk_index: int, wav_path: Path):
     """
     Process one wav chunk:
-    diarization → speaker linking → STT → speaker assignment → JSONL append
+    diarization -> speaker linking -> STT -> speaker assignment -> JSONL append
     """
 
     # 1. diarization
     diar_segments = diarize_audio(wav_path)
 
 
-    # 2. global speaker linking
+    # 2. 전역 화자 연결 (speaker -> global_speaker)
     for d in diar_segments:
         spk_id, _ = speaker_registry.match_or_create(d["embedding"])
-        d["speaker"] = spk_id
+        d["global_speaker"] = spk_id
 
-    # 3. STT
+    # 3. STT 수행
     stt_segments = transcribe_chunk(
-        wav_path,
-        model_name=MODEL_NAME,
-        language=LANGUAGE,
-        device=DEVICE
+        wav_path
     )
 
-    # 4. speaker assignment (diar ↔ STT)
+    # 4. speaker assignment (diar <-> STT)
     assigned_segments = assign_speakers(
         diar_segments=diar_segments,
         stt_segments=stt_segments,
@@ -153,7 +150,7 @@ def end_meeting():
     task_queue.put(None)
     worker_thread.join()
 
-    # merge JSONL → final JSON
+    # merge JSONL -> final JSON
     segments = []
     if PARTIAL_JSONL.exists():
         with open(PARTIAL_JSONL, "r", encoding="utf-8") as f:
@@ -177,4 +174,5 @@ def end_meeting():
 
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -28,13 +28,13 @@ class Diarizer:
         # ---- diarization pipeline ----
         self.pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization",
-            use_auth_token=hf_token,
+            token=hf_token,
         ).to(self.device)
 
         # ---- embedding model (Inference wrapper is REQUIRED) ----
         embedding_model = Model.from_pretrained(
             "pyannote/embedding",
-            use_auth_token=hf_token,
+            token=hf_token,
         )
 
         self.embedding_inference = Inference(
@@ -76,6 +76,8 @@ class Diarizer:
             # turn is pyannote.core.Segment
 
             embedding = self.embedding_inference.crop(audio_dict, turn)
+            if hasattr(embedding, "detach"):
+                embedding = embedding.detach().cpu().numpy()
 
             results.append(
                 {

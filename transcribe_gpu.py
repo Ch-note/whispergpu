@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 from config import MODEL_NAME, DEVICE, LANGUAGE
 
-print(f"🚀 Whisper device = {DEVICE}")
+print(f"Whisper device = {DEVICE}")
 
 model = WhisperModel(
     MODEL_NAME,
@@ -12,7 +12,7 @@ model = WhisperModel(
     num_workers=1
 )
 
-def transcribe_chunk(audio_path, out_dir):
+def transcribe_chunk(audio_path):
     segments, _ = model.transcribe(
         audio_path,
         language=LANGUAGE,
@@ -25,8 +25,4 @@ def transcribe_chunk(audio_path, out_dir):
         for s in segments
     ]
 
-    out_path = Path(out_dir) / (Path(audio_path).stem + ".json")
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-
-    return out_path
+    return results

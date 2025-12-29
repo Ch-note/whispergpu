@@ -33,6 +33,9 @@ RUN pip install torch==2.2.2 torchaudio==2.2.2 \
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
+# NumPy 2.0 충돌 방지를 위한 재고정 (중요)
+RUN python -m pip install --no-cache-dir "numpy<2.0"
+
 # 코드
 COPY *.py /app/
 COPY config.yaml /app/
