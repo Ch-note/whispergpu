@@ -60,8 +60,9 @@ class Diarizer:
         login(token=hf_token)
 
         # ---- diarization pipeline ----
+        # pyannote.audio 3.x 버전은 반드시 -3.1 모델명을 사용해야 하위 의존성(SpeechBrain) 충돌이 없습니다.
         self.pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization"
+            "pyannote/speaker-diarization-3.1"
         ).to(self.device)
 
         # ---- embedding model (Inference wrapper is REQUIRED) ----
