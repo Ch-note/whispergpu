@@ -1,4 +1,7 @@
 numpy == 1.26.4
+--index-url https://download.pytorch.org/whl/cu121
+torch == 2.4.0
+torchaudio == 2.4.0
 faster-whisper == 1.2.1
 ctranslate2 == 4.6.2
 pyannote.audio == 3.3.1
