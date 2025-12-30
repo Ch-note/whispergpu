@@ -5,9 +5,25 @@ import os
 
 from pyannote.audio import Pipeline, Model, Inference, Audio
 from pyannote.core import Segment
-from huggingface_hub import login
+from huggingface_hub import login, hf_hub_download
+import huggingface_hub
+import functools
 
 from config import DEVICE
+
+# ---- Monkey patch for huggingface_hub version compatibility ----
+# pyannote.audio 3.3.1 uses 'use_auth_token' which is deprecated/removed in latest huggingface_hub.
+# This patch ensures that any call to hf_hub_download uses 'token' instead.
+_original_hf_hub_download = hf_hub_download
+def _patched_hf_hub_download(*args, **kwargs):
+    if "use_auth_token" in kwargs:
+        kwargs["token"] = kwargs.pop("use_auth_token")
+    return _original_hf_hub_download(*args, **kwargs)
+
+huggingface_hub.hf_hub_download = _patched_hf_hub_download
+# Also patch the global namespace where it might have been imported already
+import pyannote.audio.core.pipeline
+pyannote.audio.core.pipeline.hf_hub_download = _patched_hf_hub_download
 
 
 class Diarizer:
