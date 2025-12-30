@@ -5,6 +5,7 @@ import os
 
 from pyannote.audio import Pipeline, Model, Inference, Audio
 from pyannote.core import Segment
+from huggingface_hub import login
 
 from config import DEVICE
 
@@ -25,16 +26,17 @@ class Diarizer:
 
         self.device = torch.device("cuda")
 
+        # ---- global login for gated models (solves token/use_auth_token conflict) ----
+        login(token=hf_token)
+
         # ---- diarization pipeline ----
         self.pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization",
-            token=hf_token,
+            "pyannote/speaker-diarization"
         ).to(self.device)
 
         # ---- embedding model (Inference wrapper is REQUIRED) ----
         embedding_model = Model.from_pretrained(
-            "pyannote/embedding",
-            token=hf_token,
+            "pyannote/embedding"
         )
 
         self.embedding_inference = Inference(
