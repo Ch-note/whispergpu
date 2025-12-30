@@ -146,6 +146,16 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
+@app.get("/result")
+def get_result():
+    records = []
+    if PARTIAL_JSONL.exists():
+        with open(PARTIAL_JSONL, "r", encoding="utf-8") as f:
+            for line in f:
+                records.append(json.loads(line))
+    return records
+
+
 @app.post("/chunk")
 async def upload_chunk(
     chunkIndex: int = Form(...),
