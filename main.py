@@ -2,9 +2,10 @@ import json
 import queue
 import threading
 import os
+import asyncio
 from pathlib import Path
-
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket
+from websocket_manager import manager
 
 # ----------------------------
 # config
@@ -90,6 +91,7 @@ def process_chunk(chunk_index: int, wav_path: Path):
     )
 
     # 5. append JSONL (global timeline)
+    records = []
     with open(PARTIAL_JSONL, "a", encoding="utf-8") as f:
         for seg in assigned_segments:
             global_start = round(chunk_index * CHUNK_SEC + seg["start"], 2)
@@ -102,6 +104,18 @@ def process_chunk(chunk_index: int, wav_path: Path):
                 "text": seg["text"]
             }
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            records.append(record)
+
+    # 6. WebSocket 실시간 방송
+    if loop:
+        asyncio.run_coroutine_threadsafe(
+            manager.broadcast({
+                "type": "new_segments",
+                "chunkIndex": chunk_index,
+                "segments": records
+            }),
+            loop
+        )
 
 
 # ----------------------------
@@ -109,11 +123,27 @@ def process_chunk(chunk_index: int, wav_path: Path):
 # ----------------------------
 app = FastAPI()
 worker_thread = threading.Thread(target=worker_loop, daemon=True)
+loop = None
 
 
 @app.on_event("startup")
 def startup():
+    global loop
+    loop = asyncio.get_event_loop()
     worker_thread.start()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """실시간 전사 결과를 수신하기 위한 WebSocket 엔드포인트"""
+    await manager.connect(websocket)
+    try:
+        # 연결 유지 (클라이언트로부터의 메시지는 무시하거나 필요 시 처리)
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        # 연결 종료 시 관리자에서 제거
+        manager.disconnect(websocket)
 
 
 @app.post("/chunk")
