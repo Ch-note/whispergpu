@@ -92,11 +92,13 @@ def process_chunk(chunk_index: int, wav_path: Path):
     # 5. append JSONL (global timeline)
     with open(PARTIAL_JSONL, "a", encoding="utf-8") as f:
         for seg in assigned_segments:
+            global_start = round(chunk_index * CHUNK_SEC + seg["start"], 2)
+            global_end = round(chunk_index * CHUNK_SEC + seg["end"], 2)
             record = {
                 "chunk": chunk_index,
                 "speaker": seg["speaker"],
-                "start": chunk_index * CHUNK_SEC + seg["start"],
-                "end": chunk_index * CHUNK_SEC + seg["end"],
+                "start": global_start,
+                "end": global_end,
                 "text": seg["text"]
             }
             f.write(json.dumps(record, ensure_ascii=False) + "\n")

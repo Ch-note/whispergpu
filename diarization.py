@@ -86,8 +86,8 @@ class Diarizer:
 
                 results.append(
                     {
-                        "start": float(turn.start),
-                        "end": float(turn.end),
+                        "start": round(float(turn.start), 2),
+                        "end": round(float(turn.end), 2),
                         "speaker": speaker,
                         "embedding": embedding,
                     }

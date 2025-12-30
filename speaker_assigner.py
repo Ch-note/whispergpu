@@ -67,8 +67,8 @@ def assign_speakers(
                 speaker = "UNKNOWN"
 
         results.append({
-            "start": seg["start"],
-            "end": seg["end"],
+            "start": round(float(seg["start"]), 2),
+            "end": round(float(seg["end"]), 2),
             "speaker": speaker,
             "text": seg["text"]
         })
