@@ -61,9 +61,21 @@ class Diarizer:
 
         # ---- diarization pipeline ----
         # pyannote.audio 3.x 버전은 반드시 -3.1 모델명을 사용해야 하위 의존성(SpeechBrain) 충돌이 없습니다.
+        # token 인자를 명시적으로 넘겨 패치된 함수가 작동하도록 합니다.
         self.pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1"
-        ).to(self.device)
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=hf_token
+        )
+        
+        if self.pipeline is None:
+            raise RuntimeError(
+                "Failed to load the diarization pipeline. \n"
+                "1. Visit https://hf.co/pyannote/speaker-diarization-3.1 and click 'Accept' \n"
+                "2. Visit https://hf.co/pyannote/segmentation-3.0 and click 'Accept' \n"
+                "3. Ensure your HF_TOKEN has 'Read' permissions."
+            )
+        
+        self.pipeline.to(self.device)
 
         # ---- embedding model (Inference wrapper is REQUIRED) ----
         embedding_model = Model.from_pretrained(
