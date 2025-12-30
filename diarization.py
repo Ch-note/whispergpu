@@ -10,20 +10,34 @@ import huggingface_hub
 import functools
 
 from config import DEVICE
+import sys
 
-# ---- Monkey patch for huggingface_hub version compatibility ----
-# pyannote.audio 3.3.1 uses 'use_auth_token' which is deprecated/removed in latest huggingface_hub.
-# This patch ensures that any call to hf_hub_download uses 'token' instead.
+# ---- Global Monkey patch for huggingface_hub version compatibility ----
+# More robust: it scans all currently loaded modules and replaces the reference.
 _original_hf_hub_download = hf_hub_download
+
 def _patched_hf_hub_download(*args, **kwargs):
     if "use_auth_token" in kwargs:
         kwargs["token"] = kwargs.pop("use_auth_token")
     return _original_hf_hub_download(*args, **kwargs)
 
+# 1. Patch the main entry point
 huggingface_hub.hf_hub_download = _patched_hf_hub_download
-# Also patch the global namespace where it might have been imported already
-import pyannote.audio.core.pipeline
-pyannote.audio.core.pipeline.hf_hub_download = _patched_hf_hub_download
+
+# 2. Patch all modules that have already imported 'hf_hub_download'
+for name, module in list(sys.modules.items()):
+    if hasattr(module, "hf_hub_download"):
+        if getattr(module, "hf_hub_download") is _original_hf_hub_download:
+            setattr(module, "hf_hub_download", _patched_hf_hub_download)
+
+# 3. Explicitly patch key pyannote modules just to be sure
+try:
+    import pyannote.audio.core.pipeline
+    pyannote.audio.core.pipeline.hf_hub_download = _patched_hf_hub_download
+    import pyannote.audio.core.model
+    pyannote.audio.core.model.hf_hub_download = _patched_hf_hub_download
+except ImportError:
+    pass
 
 
 class Diarizer:
