@@ -6,6 +6,7 @@ import asyncio
 import subprocess
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from websocket_manager import manager
 
 # ----------------------------
@@ -161,6 +162,16 @@ def process_chunk(chunk_index: int, wav_path: Path):
 # FastAPI
 # ----------------------------
 app = FastAPI()
+
+# CORS 설정 추가 (프론트엔드 연동용)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 worker_thread = threading.Thread(target=worker_loop, daemon=True)
 loop = None
 
