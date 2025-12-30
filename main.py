@@ -3,6 +3,7 @@ import queue
 import threading
 import os
 import asyncio
+import subprocess
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket
 from websocket_manager import manager
@@ -58,9 +59,40 @@ def worker_loop():
         if task is None:
             break
         try:
+            print(f"[Worker] Starting process for chunk {task.get('chunk_index')}")
             process_chunk(**task)
+        except Exception as e:
+            import traceback
+            print(f"[Worker] Error processing chunk: {str(e)}")
+            traceback.print_exc()
         finally:
             task_queue.task_done()
+
+
+def convert_to_wav(input_path: Path) -> Path:
+    """
+    Convert any audio to standard 16kHz Mono WAV for ML models.
+    Requires ffmpeg to be installed on the system.
+    """
+    output_path = input_path.with_name(f"{input_path.stem}_converted.wav")
+    
+    # ffmpeg command: 16kHz, mono, wav
+    cmd = [
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-ar", "16000", "-ac", "1",
+        str(output_path)
+    ]
+    
+    try:
+        print(f"[Worker] Converting {input_path.name} to 16kHz Mono WAV...")
+        subprocess.run(cmd, check=True, capture_output=True)
+        # 뱐환 완료 후 원본이 wav가 아니었다면 원본 삭제 (공간 절약)
+        if input_path.suffix.lower() != ".wav":
+            input_path.unlink()
+        return output_path
+    except subprocess.CalledProcessError as e:
+        print(f"[Worker] Audio conversion failed: {e.stderr.decode()}")
+        return input_path # 실패 시 원본 그대로 시도
 
 
 def process_chunk(chunk_index: int, wav_path: Path):
@@ -69,7 +101,11 @@ def process_chunk(chunk_index: int, wav_path: Path):
     diarization -> speaker linking -> STT -> speaker assignment -> JSONL append
     """
 
+    # 0. 변환 (16kHz Mono WAV로 통일)
+    wav_path = convert_to_wav(wav_path)
+
     # 1. diarization
+    print(f"[Worker] Step 1: Diarizing {wav_path.name}...")
     diar_segments = diarize_audio(wav_path)
 
 
@@ -79,11 +115,13 @@ def process_chunk(chunk_index: int, wav_path: Path):
         d["global_speaker"] = spk_id
 
     # 3. STT 수행
+    print(f"[Worker] Step 2: Transcribing {wav_path.name}...")
     stt_segments = transcribe_chunk(
         wav_path
     )
 
     # 4. speaker assignment (diar <-> STT)
+    print(f"[Worker] Step 3: Assigning speakers...")
     assigned_segments = assign_speakers(
         diar_segments=diar_segments,
         stt_segments=stt_segments,
@@ -91,6 +129,7 @@ def process_chunk(chunk_index: int, wav_path: Path):
     )
 
     # 5. append JSONL (global timeline)
+    print(f"[Worker] Step 4: Saving results to {PARTIAL_JSONL.name}...")
     records = []
     with open(PARTIAL_JSONL, "a", encoding="utf-8") as f:
         for seg in assigned_segments:
@@ -166,15 +205,21 @@ async def upload_chunk(
     if meeting_ended:
         raise HTTPException(400, "Meeting already ended")
 
-    if not file.filename.endswith(".wav"):
-        raise HTTPException(400, "Only wav files are supported")
+    # 브라우저 MediaRecorder는 보통 webm 등을 생성하므로 체크를 완화합니다.
+    # pydub 등의 라이브러리가 있다면 여기서 wav로 변환하는 것이 안전하지만,
+    # faster-whisper는 ffmpeg이 설치되어 있다면 대부분의 포맷을 처리할 수 있습니다.
+    allowed_extensions = [".wav", ".webm", ".ogg", ".mp3", ".m4a"]
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_extensions and not file.content_type.startswith("audio/"):
+         raise HTTPException(400, f"Unsupported file type: {file.filename}")
 
-    wav_path = INPUT_DIR / f"chunk_{chunkIndex:05d}.wav"
-    wav_path.write_bytes(await file.read())
+    # 저장 시에는 chunkIndex를 사용하여 고유한 이름을 부여합니다.
+    save_path = INPUT_DIR / f"chunk_{chunkIndex:05d}{ext}"
+    save_path.write_bytes(await file.read())
 
     task_queue.put({
         "chunk_index": chunkIndex,
-        "wav_path": wav_path
+        "wav_path": save_path
     })
 
     return {

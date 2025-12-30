@@ -9,7 +9,9 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        print(f"[INFO] New WebSocket connection. Total connections: {len(self.active_connections)}")
+        # 클라이언트에게 준비 완료 신호 전송
+        await websocket.send_json({"type": "server_ready"})
+        print(f"[INFO] New WebSocket connection and sent ready signal. Total connections: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
