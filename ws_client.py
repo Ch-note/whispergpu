@@ -3,8 +3,8 @@ import websockets
 import json
 
 async def listen_realtime():
-    # Azure VM의 공인 IP가 있다면 localhost 대신 IP를 넣으세요.
-    uri = "ws://localhost:8000/ws"
+    # Azure 클라우드 서버 주소 (wss 사용)
+    uri = "wss://ieum-stt.livelymushroom-0e97085f.australiaeast.azurecontainerapps.io/ws"
     
     print(f"[WS] Connecting to {uri}...")
     try:
