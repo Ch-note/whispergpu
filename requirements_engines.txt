@@ -1,0 +1,5 @@
+faster-whisper==1.2.1
+ctranslate2==4.5.0
+av==12.3.0
+onnxruntime-gpu==1.19.0
+numpy==1.26.4

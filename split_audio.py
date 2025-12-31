@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-
+audio_path = "./tmp"
 def split_audio(audio_path, out_dir, chunk_sec):
     Path(out_dir).mkdir(exist_ok=True)
 

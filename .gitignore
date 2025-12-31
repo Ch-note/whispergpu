@@ -1,2 +1,23 @@
 .env
 화자분리_첫시도.txt
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env/
+
+# Conda environments
+.conda/
+envs/
+anaconda/
+miniconda/
+
+# Build and temp files
+build/
+dist/
+*.log
+tmp/

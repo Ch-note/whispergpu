@@ -2,52 +2,18 @@ from pathlib import Path
 import torch
 import numpy as np
 import os
-
 from pyannote.audio import Pipeline, Model, Inference, Audio
 from pyannote.core import Segment
-from huggingface_hub import login, hf_hub_download
-import huggingface_hub
-import functools
-
+from huggingface_hub import login
 from config import DEVICE
-import sys
-
-# ---- Global Monkey patch for huggingface_hub version compatibility ----
-# More robust: it scans all currently loaded modules and replaces the reference.
-_original_hf_hub_download = hf_hub_download
-
-def _patched_hf_hub_download(*args, **kwargs):
-    if "use_auth_token" in kwargs:
-        kwargs["token"] = kwargs.pop("use_auth_token")
-    return _original_hf_hub_download(*args, **kwargs)
-
-# 1. Patch the main entry point
-huggingface_hub.hf_hub_download = _patched_hf_hub_download
-
-# 2. Patch all modules that have already imported 'hf_hub_download'
-for name, module in list(sys.modules.items()):
-    if hasattr(module, "hf_hub_download"):
-        if getattr(module, "hf_hub_download") is _original_hf_hub_download:
-            setattr(module, "hf_hub_download", _patched_hf_hub_download)
-
-# 3. Explicitly patch key pyannote modules just to be sure
-try:
-    import pyannote.audio.core.pipeline
-    pyannote.audio.core.pipeline.hf_hub_download = _patched_hf_hub_download
-    import pyannote.audio.core.model
-    pyannote.audio.core.model.hf_hub_download = _patched_hf_hub_download
-except ImportError:
-    pass
-
 
 class Diarizer:
     """
-    Speaker diarization + embedding extractor
-    pyannote.audio 3.x compatible
+    Hybrid Diarization + Overlap Awareness
+    pyannote.audio 3.3.1 compatible
     """
 
     def __init__(self, hf_token: str):
-        # ---- device policy: CUDA only ----
         if DEVICE != "cuda":
             raise RuntimeError(f"Invalid DEVICE={DEVICE}. This pipeline requires CUDA.")
 
@@ -56,30 +22,24 @@ class Diarizer:
 
         self.device = torch.device("cuda")
 
-        # ---- global login for gated models (solves token/use_auth_token conflict) ----
+        # HF Login (Version-safe)
         login(token=hf_token)
 
-        # ---- diarization pipeline ----
-        # pyannote.audio 3.x 버전은 반드시 -3.1 모델명을 사용해야 하위 의존성(SpeechBrain) 충돌이 없습니다.
-        # token 인자를 명시적으로 넘겨 패치된 함수가 작동하도록 합니다.
+        # Diarization Pipeline (3.3.1 uses 'token' instead of 'use_auth_token')
         self.pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            use_auth_token=hf_token
+            "pyannote/speaker-diarization-3.3",
+            token=hf_token
         )
         
         if self.pipeline is None:
-            raise RuntimeError(
-                "Failed to load the diarization pipeline. \n"
-                "1. Visit https://hf.co/pyannote/speaker-diarization-3.1 and click 'Accept' \n"
-                "2. Visit https://hf.co/pyannote/segmentation-3.0 and click 'Accept' \n"
-                "3. Ensure your HF_TOKEN has 'Read' permissions."
-            )
+            raise RuntimeError("Failed to load the diarization pipeline.")
         
         self.pipeline.to(self.device)
 
-        # ---- embedding model (Inference wrapper is REQUIRED) ----
+        # Embedding model (Used for speaker identity)
         embedding_model = Model.from_pretrained(
-            "pyannote/embedding"
+            "pyannote/embedding",
+            token=hf_token
         )
 
         self.embedding_inference = Inference(
@@ -87,41 +47,23 @@ class Diarizer:
             window="whole",
         ).to(self.device)
 
-        # ---- audio loader (explicit, version-safe) ----
         self.audio = Audio(sample_rate=16000, mono=True)
 
     def diarize(self, audio_path: str):
         """
-        Run diarization and return segments with embeddings.
-
-        Returns:
-            List[dict]:
-              {
-                "start": float,
-                "end": float,
-                "speaker": str,
-                "embedding": np.ndarray
-              }
+        Returns diarization results with overlap awareness.
         """
         audio_path = str(Path(audio_path).resolve())
-
-        # ---- load audio explicitly ----
         waveform, sample_rate = self.audio(audio_path)
-        audio_dict = {
-            "waveform": waveform,
-            "sample_rate": sample_rate,
-        }
+        audio_dict = {"waveform": waveform, "sample_rate": sample_rate}
 
-        # ---- run diarization ----
         diarization = self.pipeline(audio_dict)
-
         results = []
 
+        # pyannote.audio 3.x tracks can overlap
+        # We group them to detect multi-speaker segments
         for turn, _, speaker in diarization.itertracks(yield_label=True):
-            # turn is pyannote.core.Segment
-            
-            # ---- 너무 짧은 구간(0.5초 미만)은 임베딩 추출 시 에러 발생 가능하므로 제외 ----
-            if turn.duration < 0.2:
+            if turn.duration < 0.5:
                 continue
 
             try:
@@ -129,25 +71,29 @@ class Diarizer:
                 if hasattr(embedding, "detach"):
                     embedding = embedding.detach().cpu().numpy()
 
-                results.append(
-                    {
-                        "start": round(float(turn.start), 2),
-                        "end": round(float(turn.end), 2),
-                        "speaker": speaker,
-                        "embedding": embedding,
-                    }
-                )
+                results.append({
+                    "start": round(float(turn.start), 2),
+                    "end": round(float(turn.end), 2),
+                    "speaker": speaker,
+                    "embedding": embedding,
+                })
             except Exception as e:
-                print(f"[WARN] Failed to extract embedding for segment {turn.start:.2f}-{turn.end:.2f}: {e}")
+                print(f"[WARN] Embedding error at {turn.start:.2f}s: {e}")
                 continue
 
         return results
 
+    def get_overlapping_segments(self, diarization_result):
+        """
+        [NEW] 식별된 화자들의 시간대를 분석하여 겹침 구간만 추출합니다.
+        사후 음성 분리(Separation) 모델을 돌릴 대상을 선정하는 데 사용됩니다.
+        """
+        # (구현부: 겹침 구간 로직은 파이프라인 완성 후 구체화 예정)
+        pass
 
 def diarize_audio(audio_path: str):
     hf_token = os.environ.get("HF_TOKEN")
-    if hf_token is None:
+    if not hf_token:
         raise RuntimeError("HF_TOKEN is not set in environment")
-
     diarizer = Diarizer(hf_token=hf_token)
     return diarizer.diarize(audio_path)

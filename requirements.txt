@@ -1,18 +1,23 @@
-numpy == 1.26.4
---index-url https://download.pytorch.org/whl/cu121
-torch == 2.4.0
-torchaudio == 2.4.0
-faster-whisper == 1.2.1
-ctranslate2 == 4.6.2
-pyannote.audio == 3.3.1
-tqdm
-psutil
-pyyaml
-soundfile
-requests
+faster-whisper==1.2.1
+ctranslate2==4.5.0
+nvidia-cudnn-cu12==9.1.0.70
+av==12.3.0
+onnxruntime-gpu==1.19.0
+pyannote.audio==3.3.1
+speechbrain==1.0.1
+lightning==2.4.0
+pyannote.core==5.0.0
+pyannote.database==6.1.1
+pyannote.metrics==3.2.1
+pyannote.pipeline==3.0.1
+transformers==4.44.2
+tokenizers>=0.19.3,<0.20
+huggingface_hub==0.25.2
 fastapi
 uvicorn
 python-multipart
+python-dotenv
 websockets
-huggingface_hub == 0.23.2
-speechbrain >= 1.0.0
+numpy==1.26.4
+pyyaml
+pathlib

@@ -1,0 +1,18 @@
+pyannote.audio==3.3.1
+speechbrain==1.0.1
+lightning==2.4.0
+# Let pyannote.audio decide exact sub-versions to avoid conflicts
+pyannote.core>=5.0.0
+pyannote.database>=5.0.1
+pyannote.metrics>=3.2.1
+pyannote.pipeline>=3.0.1
+transformers==4.44.2
+huggingface_hub==0.25.2
+fastapi
+uvicorn
+python-multipart
+python-dotenv
+websockets
+pyyaml
+pathlib
+numpy==1.26.4
