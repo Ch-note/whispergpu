@@ -1,0 +1,67 @@
+{
+    "project_name": "Whisper GPU Real-time Transcription",
+    "current_status": {
+        "version": "v6",
+        "deployment_platform": "Azure Container Apps (ACA)",
+        "region_optimization": "Ongoing (Migrating ACR from Korea Central to Australia East)",
+        "last_major_fix": "cuDNN version mismatch resolved by updating base image and LD_LIBRARY_PATH",
+        "performance_status": "Warm-start optimized via Diarizer singleton and Model Baking"
+    },
+    "infrastructure_details": {
+        "compute": {
+            "provider": "Azure",
+            "service": "Container Apps",
+            "workload_profile": "NC8as-T4 (Tesla T4 GPU)",
+            "region": "australiaeast",
+            "min_replicas": 1
+        },
+        "storage": {
+            "registry_kr": "whispergpu.azurecr.io (Basic Tier)",
+            "registry_au": "whispergpuau.azurecr.io (Basic Tier, Newly Created)",
+            "image_size": "~20GB"
+        }
+    },
+    "technical_stack": {
+        "python_version": "3.11",
+        "cuda_version": "12.4.1",
+        "cudnn_version": "9.1.0 (Runtime)",
+        "core_libraries": {
+            "pyannote.audio": "3.3.1",
+            "faster-whisper": "1.2.1",
+            "torch": "2.4.0+cu121"
+        },
+        "models": {
+            "diarization": "pyannote/speaker-diarization-3.1",
+            "embedding": "pyannote/embedding",
+            "transcription": "faster-whisper medium"
+        }
+    },
+    "optimization_roadmap": {
+        "v7_multi_tenancy": {
+            "goal": "Session isolation and instance-per-meeting scaling",
+            "plan": [
+                "Introduce meeting_id in API and file paths",
+                "Set maxConcurrentRequests: 1 in ACA to force new replicas",
+                "Implement room-based WebSocket broadcasting"
+            ]
+        },
+        "v8_overlapping_speech": {
+            "goal": "Resolve crosstalk / simultaneous speakers",
+            "strategy": [
+                "Enable Overlap Detection in Pyannote",
+                "Integrate pyannote/speech-separation-ami-1.0",
+                "Parallel track transcription via Whisper"
+            ]
+        },
+        "ux_optimization": {
+            "lazy_loading": "Async engine initialization to open port in <1s",
+            "regional_acr": "Move registry to Australia East to cut pull time by >50%"
+        }
+    },
+    "key_decisions": [
+        "Used Model Baking instead of runtime download to avoid 'PullingImage' timeouts.",
+        "Used Singleton pattern for Diarizer to avoid 10s per-chunk loading overhead.",
+        "Prioritizing 'Lazy Loading' over 'Artifact Streaming' for cost-effective UX improvement.",
+        "Moving to Australia East ACR to solve the trans-Pacific network bottleneck."
+    ]
+}

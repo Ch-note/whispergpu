@@ -27,7 +27,7 @@ if not HF_TOKEN:
 # ----------------------------
 # pipeline modules
 # ----------------------------
-from diarization import diarize_audio
+from diarization import diarize_audio, Diarizer
 from speaker_linker import SpeakerRegistry
 from speaker_assigner import assign_speakers
 from transcribe_gpu import transcribe_chunk
@@ -61,7 +61,7 @@ def worker_loop():
             break
         try:
             print(f"[Worker] Starting process for chunk {task.get('chunk_index')}")
-            process_chunk(**task)
+            process_chunk(shared_diarizer, **task)
         except Exception as e:
             import traceback
             print(f"[Worker] Error processing chunk: {str(e)}")
@@ -96,7 +96,7 @@ def convert_to_wav(input_path: Path) -> Path:
         return input_path # 실패 시 원본 그대로 시도
 
 
-def process_chunk(chunk_index: int, wav_path: Path):
+def process_chunk(diarizer: Diarizer, chunk_index: int, wav_path: Path):
     """
     Process one wav chunk:
     diarization -> speaker linking -> STT -> speaker assignment -> JSONL append
@@ -107,7 +107,7 @@ def process_chunk(chunk_index: int, wav_path: Path):
 
     # 1. diarization
     print(f"[Worker] Step 1: Diarizing {wav_path.name}...")
-    diar_segments = diarize_audio(wav_path)
+    diar_segments = diarize_audio(wav_path, diarizer=diarizer)
 
 
     # 2. 전역 화자 연결 (speaker -> global_speaker)
@@ -176,9 +176,15 @@ worker_thread = threading.Thread(target=worker_loop, daemon=True)
 loop = None
 
 
+shared_diarizer = None
+
 @app.on_event("startup")
 def startup():
     global loop
+    global shared_diarizer
+    print("[Startup] Initializing shared Diarizer...")
+    shared_diarizer = Diarizer(hf_token=HF_TOKEN)
+    
     loop = asyncio.get_event_loop()
     worker_thread.start()
 

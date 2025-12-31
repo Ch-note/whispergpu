@@ -1,10 +1,10 @@
-FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib/python3.11/dist-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}"
 
 RUN apt-get update && apt-get install -y \
     software-properties-common \
@@ -44,5 +44,10 @@ RUN python3.11 -m pip install --no-cache-dir -r requirements_app.txt
 COPY *.py /app/
 COPY config.yaml /app/
 
+# 모델 미리 다운로드 (빌드 시점에 캐싱)
+ARG HF_TOKEN
+RUN HF_TOKEN=${HF_TOKEN} python3.11 /app/download_models.py
+
 # 실행
 CMD ["python3.11", "main.py"]
+

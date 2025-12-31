@@ -27,8 +27,8 @@ class Diarizer:
 
         # Diarization Pipeline (3.3.1 uses 'token' instead of 'use_auth_token')
         self.pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.3",
-            token=hf_token
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=hf_token
         )
         
         if self.pipeline is None:
@@ -37,13 +37,13 @@ class Diarizer:
         self.pipeline.to(self.device)
 
         # Embedding model (Used for speaker identity)
-        embedding_model = Model.from_pretrained(
+        self.embedding_model = Model.from_pretrained(
             "pyannote/embedding",
-            token=hf_token
-        )
+            use_auth_token=hf_token
+        ).to(self.device)
 
         self.embedding_inference = Inference(
-            embedding_model,
+            self.embedding_model,
             window="whole",
         ).to(self.device)
 
@@ -91,9 +91,11 @@ class Diarizer:
         # (구현부: 겹침 구간 로직은 파이프라인 완성 후 구체화 예정)
         pass
 
-def diarize_audio(audio_path: str):
-    hf_token = os.environ.get("HF_TOKEN")
-    if not hf_token:
-        raise RuntimeError("HF_TOKEN is not set in environment")
-    diarizer = Diarizer(hf_token=hf_token)
+def diarize_audio(audio_path: str, diarizer: Diarizer = None):
+    if diarizer is None:
+        hf_token = os.environ.get("HF_TOKEN")
+        if not hf_token:
+            raise RuntimeError("HF_TOKEN is not set in environment")
+        diarizer = Diarizer(hf_token=hf_token)
     return diarizer.diarize(audio_path)
+
