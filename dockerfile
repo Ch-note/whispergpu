@@ -40,13 +40,14 @@ RUN python3.11 -m pip install --no-cache-dir -r requirements_engines.txt
 COPY requirements_app.txt .
 RUN python3.11 -m pip install --no-cache-dir -r requirements_app.txt
 
-# 코드 복사
-COPY *.py /app/
-COPY config.yaml /app/
-
-# 모델 미리 다운로드 (빌드 시점에 캐싱)
+# 모델 전용 다운로드 스크립트 복사 및 실행 (빌드 캐시 최적화)
+COPY download_models.py /app/
 ARG HF_TOKEN
 RUN HF_TOKEN=${HF_TOKEN} python3.11 /app/download_models.py
+
+# 나머지 코드 복사 (모델 다운로드 이후에 수행하여 코드 수정 시에도 모델 캐시 유지)
+COPY *.py /app/
+COPY config.yaml /app/
 
 # 실행
 CMD ["python3.11", "main.py"]

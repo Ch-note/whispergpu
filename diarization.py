@@ -83,13 +83,59 @@ class Diarizer:
 
         return results
 
-    def get_overlapping_segments(self, diarization_result):
+    def get_overlapping_segments(self, diar_results):
         """
         [NEW] 식별된 화자들의 시간대를 분석하여 겹침 구간만 추출합니다.
-        사후 음성 분리(Separation) 모델을 돌릴 대상을 선정하는 데 사용됩니다.
+        알고리즘: 모든 시작/종료 시점을 정렬한 뒤, 각 구간별 활성 화자 수를 계산합니다.
         """
-        # (구현부: 겹침 구간 로직은 파이프라인 완성 후 구체화 예정)
-        pass
+        if not diar_results:
+            return []
+
+        # 1. 모든 시점(Event) 수집
+        events = []
+        for d in diar_results:
+            events.append((d["start"], 1, d["speaker"]))  # 시작
+            events.append((d["end"], -1, d["speaker"]))   # 종료
+
+        # 2. 시간순 정렬
+        events.sort()
+
+        overlaps = []
+        active_speakers = set()
+        last_time = events[0][0]
+
+        # 3. 스윕 라인(Sweep-line) 알고리즘으로 겹침 구간 검색
+        for time, kind, speaker in events:
+            # 이전 시점부터 현재 시점까지 활성 화자가 2명 이상이면 겹침 구간
+            if len(active_speakers) > 1 and time > last_time:
+                overlaps.append({
+                    "start": last_time,
+                    "end": time,
+                    "speakers": list(active_speakers)
+                })
+            
+            if kind == 1:
+                active_speakers.add(speaker)
+            else:
+                active_speakers.discard(speaker)
+            
+            last_time = time
+
+        # 4. 인접한 동일 화자 겹침 구간 병합 (Optional, but cleaner)
+        merged = []
+        if overlaps:
+            curr = overlaps[0]
+            for i in range(1, len(overlaps)):
+                nxt = overlaps[i]
+                # 시간적으로 이어져 있고 참여 화자가 동일하면 병합
+                if nxt["start"] == curr["end"] and set(nxt["speakers"]) == set(curr["speakers"]):
+                    curr["end"] = nxt["end"]
+                else:
+                    merged.append(curr)
+                    curr = nxt
+            merged.append(curr)
+
+        return merged
 
 def diarize_audio(audio_path: str, diarizer: Diarizer = None):
     if diarizer is None:

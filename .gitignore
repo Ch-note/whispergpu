@@ -1,5 +1,6 @@
 .env
 화자분리_첫시도.txt
+*.wav
 
 # Python & Virtual Environments
 __pycache__/
@@ -21,3 +22,5 @@ build/
 dist/
 *.log
 tmp/
+test_chunks/
+/test_chunks
